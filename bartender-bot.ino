@@ -1,150 +1,139 @@
-// #define EN 8    // stepper motor enable, active low
-// #define X_DIR 5 // X-axis stepper motor direction control
-// #define Y_DIR 6 // Y-axis stepper motor direction control
-// #define Z_DIR 7 // Z-axis stepper motor direction control
-// #define X_STP 2 // X-axis stepper control
-// #define Y_STP 3 // Y-axis stepper control
-// #define Z_STP 4 // Z-axis stepper control
+#define MOTOR_SLEEP D6    // stepper motor enable, active low
 
-#ifndef STASSID
-#define STASSID "dlink-4034-2_4GHz" // set your SSID
-#define STAPSK "dmhwv39388"         // set your wifi password
-#endif
+#define X_DIR D3 // stepper motor X direction control
+#define Y_DIR D4 // stepper motor Y direction control
+#define Z_DIR D5 // stepper motor Z direction control
+#define A_DIR D6 // stepper motor A direction control
+#define X_STP D0 // X stepper control
+#define Y_STP D1 // Y stepper control
+#define Z_STP D2 // Z stepper control
+#define A_STP D3 // A stepper control
 
-#include <ESP8266WiFi.h>
-#include <ESP8266mDNS.h>
-#include <WiFiUdp.h>
-#include <ArduinoOTA.h>
+// 5ml = 2200 steps with delay = 300
 
-#define EN D6    // stepper motor enable, active low
-#define X_DIR D3 // X-axis stepper motor direction control
-#define Y_DIR D4 // Y-axis stepper motor direction control
-#define Z_DIR D5 // Z-axis stepper motor direction control
-#define X_STP D0 // X-axis stepper control
-#define Y_STP D1 // Y-axis stepper control
-#define Z_STP D2 // Z-axis stepper control
-
-void setup()
-{
-
+void setup() {
   Serial.begin(9600);
-
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(STASSID, STAPSK);
-
-  while (WiFi.waitForConnectResult() != WL_CONNECTED)
-  {
-    Serial.println("Connection Failed! Rebooting...");
-    delay(5000);
-    ESP.restart();
-  }
 
   Serial.println("Booting");
 
-  ArduinoOTA.onStart([]()
-                     { Serial.println("Start"); });
-  ArduinoOTA.onEnd([]()
-                   { Serial.println("\nEnd"); });
-  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total)
-                        { Serial.printf("Progress: %u%%\r", (progress / (total / 100))); });
-  ArduinoOTA.onError([](ota_error_t error)
-                     {
-    Serial.printf("Error[%u]: ", error);
-    if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
-    else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
-    else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
-    else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
-    else if (error == OTA_END_ERROR) Serial.println("End Failed"); });
-
-  // the stepping motor used in the O pin is set to output
+  // Configure pins
   pinMode(X_DIR, OUTPUT);
   pinMode(X_STP, OUTPUT);
   pinMode(Y_DIR, OUTPUT);
   pinMode(Y_STP, OUTPUT);
   pinMode(Z_DIR, OUTPUT);
   pinMode(Z_STP, OUTPUT);
-  pinMode(EN, OUTPUT);
+  pinMode(MOTOR_SLEEP, OUTPUT);
   pinMode(LED_BUILTIN, OUTPUT);
 
-  ArduinoOTA.begin();
-  Serial.println("Ready");
-  Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());
-}
+  // Put motors to sleep
+  digitalWrite(MOTOR_SLEEP, HIGH);
 
-void enableMotors()
-{
-  pinMode(EN, OUTPUT);
-  digitalWrite(EN, LOW); // Depending on your motor drivers, this could be HIGH for enabling.
-}
+  // Set all motors in forward mode
+  digitalWrite(X_DIR, false);
+  digitalWrite(Y_DIR, false);
+  digitalWrite(Z_DIR, false);
 
-void disableMotors()
-{
-  digitalWrite(EN, HIGH); // Depending on your motor drivers, this could be LOW for disabling.
-}
-
-/*
-Function: step function: to control the stepper motor direction, the number of steps.
-Parameters: dir direction control, dirPin DIR pin corresponding to the stepper motor, stepperPin step pin corresponding to the stepper motor, stepping a few steps steps
-No return value
-*/
-void step(boolean dir, byte dirPin, byte stepperPin, int steps, int sp)
-{
-  digitalWrite(dirPin, dir);
-  delay(10);
-
-  for (int i = 0; i < steps; i++)
-  {
-    digitalWrite(stepperPin, HIGH);
-    delayMicroseconds(sp);
-    digitalWrite(stepperPin, LOW);
-    delayMicroseconds(sp);
-  }
-}
-
-String strs[20];
-int StringCount = 0;
-void handleSerial()
-{
+  // Ready to go
   Serial.println("Waiting for instructions:");
-  while (Serial.available() == 0)
-  {
-  }                                      // wait for data available
-  String inputStr = Serial.readString(); // read until timeout
-  inputStr.trim();                       // remove any \r \n whitespace at the end of the String
+}
 
-  while (inputStr.length() > 0)
-  {
-    int index = inputStr.indexOf(' ');
-    if (index == -1) // No space found
-    {
-      strs[StringCount++] = inputStr;
-      break;
-    }
-    else
-    {
-      strs[StringCount++] = inputStr.substring(0, index);
-      inputStr = inputStr.substring(index + 1);
-    }
-  }
+// Global state
+bool motorsIsAwake = false;
+int motorXSteps = 0;
+int motorYSteps = 0;
+int motorZSteps = 0;
+int motorASteps = 0;
+int motorStepDelay = 440;
 
-  for (int i = 0; i < StringCount; i++)
-  {
-    Serial.print(i);
-    Serial.print(": \"");
-    Serial.print(strs[i]);
-    Serial.println("\"");
+void handleSerial() {
+  if (Serial.available() != 0) {
+    String inputStr = Serial.readString(); // read until timeout
+    inputStr.trim();                       // remove any \r \n whitespace at the end of the String
+
+    if (inputStr.equals("STOP")) {
+      motorXSteps = 0;
+      motorYSteps = 0;
+      motorZSteps = 0;
+      motorASteps = 0;
+      Serial.println("STOP");
+    } else if (inputStr.startsWith("X")) {
+      motorXSteps = inputStr.substring(1).toInt();
+      Serial.println("X" + String(motorXSteps));
+    } else if (inputStr.startsWith("Y")) {
+      motorYSteps = inputStr.substring(1).toInt();
+      Serial.println("Y" + String(motorYSteps));
+    } else if (inputStr.startsWith("Z")) {
+      motorZSteps = inputStr.substring(1).toInt();
+      Serial.println("Z" + String(motorZSteps));
+    } else if (inputStr.startsWith("A")) {
+      motorASteps = inputStr.substring(1).toInt();
+      Serial.println("A" + String(motorASteps));
+    } else if (inputStr.startsWith("MSD")) {
+      motorStepDelay = inputStr.substring(3).toInt();
+      Serial.println("MSD" + String(motorStepDelay));
+    } else {
+      Serial.println("Unknown command: " + inputStr);
+    }
   }
 }
 
-void loop()
-{
-  ArduinoOTA.handle();
-  // handleSerial();
+void loop() {
+  handleSerial();
 
-  enableMotors();
-  //
-  step(false, Y_DIR, Y_STP, 5000, 130);
-  disableMotors();
-  delay(20);
+  if (motorXSteps + motorYSteps + motorZSteps + motorASteps == 0) {
+    if (motorsIsAwake) {
+      Serial.println("Put motors to sleep");
+      digitalWrite(MOTOR_SLEEP, HIGH);
+      motorsIsAwake = false;
+    }
+  } else {
+    if (!motorsIsAwake) {
+      Serial.println("Wake motors from sleep");
+      digitalWrite(MOTOR_SLEEP, LOW);
+      motorsIsAwake = true;
+    }
+  }
+
+  for (int i = 0; i < 100; i++) {
+    if (motorXSteps > 0) {
+      digitalWrite(X_STP, HIGH);
+    }
+
+    if (motorYSteps > 0) {
+      digitalWrite(Y_STP, HIGH);
+    }
+
+    if (motorZSteps > 0) {
+      digitalWrite(Z_STP, HIGH);
+    }
+
+    if (motorASteps > 0) {
+      digitalWrite(A_STP, HIGH);
+    }
+
+    delayMicroseconds(motorStepDelay);
+
+    if (motorXSteps > 0) {
+      digitalWrite(X_STP, LOW);
+      motorXSteps -= 1;
+    }
+
+    if (motorYSteps > 0) {
+      digitalWrite(Y_STP, LOW);
+      motorYSteps -= 1;
+    }
+
+    if (motorZSteps > 0) {
+      digitalWrite(Z_STP, LOW);
+      motorZSteps -= 1;
+    }
+
+    if (motorASteps > 0) {
+      digitalWrite(A_STP, LOW);
+      motorASteps -= 1;
+    }
+
+    delayMicroseconds(motorStepDelay);
+  }
 }
