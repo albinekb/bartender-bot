@@ -20,6 +20,15 @@ export default function Home() {
 
 function PumpController({ pump }: { pump: any }) {
   const [ml, setMl] = useState(10)
+  const [loading, setLoading] = useState(false)
+  const dispense = async () => {
+    setLoading(true)
+    await fetch(`/pumps/X/dispense`, {
+      body: JSON.stringify({ ml }),
+      method: 'post'
+    })
+    setLoading(false)
+  }
   return <div className="p-4 bg-white rounded flex flex-col justify-center items-center">{pump.name}
     <select className='p-4 px-8 rounded' onChange={(e) => setMl(parseInt(e.target.value))} value={ml}>
       <option value={10}>10ml</option>
@@ -33,5 +42,5 @@ function PumpController({ pump }: { pump: any }) {
       <option value={90}>90ml</option>
       <option value={100}>100ml</option>
     </select>
-    <button className='bg-blue-500 text-white p-4 px-8 rounded'>Dispense</button></div>
+    <button className='bg-blue-500 text-white p-4 px-8 rounded' onClick={dispense} disabled={loading}>Dispense</button></div>
 }
