@@ -1,16 +1,10 @@
-export function usePumps() {
-  return [
-    {
-      id: 'test',
-      name: 'Test',
-    },
-    {
-      id: 'test 2',
-      name: 'Test 2',
-    },
-    {
-      id: 'test 3',
-      name: 'test 4',
-    },
-  ]
+import useSWR from 'swr'
+import {fetcher} from './api'
+import type {Pump} from '../pages/api/pumps'
+
+
+export function usePumps(): { pumps: Pump[], isLoading: boolean, error?: Error } {
+  const { data, error, isLoading } = useSWR('/api/pumps', fetcher)
+
+  return { pumps: data ?? [], isLoading, error }
 }

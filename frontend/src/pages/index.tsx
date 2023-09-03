@@ -5,7 +5,13 @@ import { usePumps } from '~/hooks/usePumps'
 const inter = Inter({ subsets: ['latin'] })
 
 export default function Home() {
-  const pumps = usePumps()
+  const {pumps, isLoading ,error} = usePumps()
+  if (isLoading) {
+    return <div>Loading</div>
+  }
+  if (error) {
+    return <div>{String(error)}</div>
+  }
   return (
     <main
       className={`flex min-h-screen flex-row justify-center items-center p-24 space-x-4 ${inter.className}`}
@@ -20,11 +26,13 @@ export default function Home() {
 
 function PumpController({ pump }: { pump: any }) {
   const [ml, setMl] = useState(10)
+  const [msd, setMsd] = useState(350)
   const [loading, setLoading] = useState(false)
   const dispense = async () => {
     setLoading(true)
-    await fetch(`/pumps/X/dispense`, {
+    await fetch(`/api/pumps/${pump.id}/dispense`, {
       body: JSON.stringify({ ml }),
+      headers: {'content-type': 'application/json'},
       method: 'post'
     })
     setLoading(false)
@@ -42,5 +50,8 @@ function PumpController({ pump }: { pump: any }) {
       <option value={90}>90ml</option>
       <option value={100}>100ml</option>
     </select>
+
+      <input type="number" className='p-4 px-8 rounded' value={msd} onChange={(e) => setMsd(parseInt(e.target.value))} />
+
     <button className='bg-blue-500 text-white p-4 px-8 rounded' onClick={dispense} disabled={loading}>Dispense</button></div>
 }
