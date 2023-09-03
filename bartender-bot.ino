@@ -58,20 +58,40 @@ void handleSerial() {
       motorASteps = 0;
       Serial.println("STOP");
     } else if (inputStr.startsWith("X")) {
+      digitalWrite(X_DIR, false);
       motorXSteps = inputStr.substring(1).toInt();
       Serial.println("X" + String(motorXSteps));
     } else if (inputStr.startsWith("Y")) {
+      digitalWrite(Y_DIR, false);
       motorYSteps = inputStr.substring(1).toInt();
       Serial.println("Y" + String(motorYSteps));
     } else if (inputStr.startsWith("Z")) {
+      digitalWrite(Y_DIR, false);
       motorZSteps = inputStr.substring(1).toInt();
       Serial.println("Z" + String(motorZSteps));
     } else if (inputStr.startsWith("A")) {
+      digitalWrite(A_DIR, false);
       motorASteps = inputStr.substring(1).toInt();
       Serial.println("A" + String(motorASteps));
     } else if (inputStr.startsWith("MSD")) {
       motorStepDelay = inputStr.substring(3).toInt();
       Serial.println("MSD" + String(motorStepDelay));
+    } else if (inputStr.startsWith("!X")) {
+      digitalWrite(X_DIR, true);
+      motorXSteps = inputStr.substring(2).toInt();
+      Serial.println("!X" + String(motorXSteps));
+    } else if (inputStr.startsWith("!Y")) {
+      digitalWrite(Y_DIR, true);
+      motorYSteps = inputStr.substring(2).toInt();
+      Serial.println("!Y" + String(motorYSteps));
+    } else if (inputStr.startsWith("!Z")) {
+      digitalWrite(Z_DIR, true);
+      motorZSteps = inputStr.substring(2).toInt();
+      Serial.println("!Z" + String(motorZSteps));
+    } else if (inputStr.startsWith("!A")) {
+      digitalWrite(A_DIR, true);
+      motorASteps = inputStr.substring(2).toInt();
+      Serial.println("!A" + String(motorASteps));
     } else {
       Serial.println("Unknown command: " + inputStr);
     }
