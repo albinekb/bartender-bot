@@ -2,7 +2,7 @@ line_width = 0.4;
 layer_height = 0.2;
 function round_to_line_width(x) = floor(x / line_width) * line_width;
 function round_to_layer_height(x) = floor(x / layer_height) * layer_height;
-base_height = round_to_layer_height(2);
+base_height = 2;
 radius = 13.5;
 // shaft_radius = 5;
 shaft_height = 9 + base_height;
@@ -21,6 +21,7 @@ bearing_outer_radius = 5;
 bearing_thickness = 4;
 
 nema_inset = 0.5;
+nema_width = 42;
 
 debug = true;
 
@@ -153,11 +154,11 @@ bolt_legs()
 }
 
 module
-bottom_cap()
+bottom_cap(debug = false)
 {
   union()
   {
-    top_cap();
+    top_cap(debug = debug);
 
     difference()
     {
@@ -213,6 +214,170 @@ bearing_mockup()
   }
 }
 
+module
+structural_bend()
+{
+  difference()
+  {
+    cube([ 10, 10, 10 ]);
+    translate([ 10, 10, 0 ])
+    {
+      cylinder(h = 12, r = 10);
+    }
+  }
+}
+
+pump_circle_inner_radius = radius + (bearing_outer_radius / 2);
+nema_17_circle_bump_radius = 11;
+module
+nema17_base()
+{
+  difference()
+  {
+    radius = 5;
+    intersection()
+    {
+      union()
+      {
+        translate([ -nema_width / 2, -(nema_width / 2), 0 ])
+        {
+          roundedcube(size = [ nema_width, nema_width, base_height ],
+                      apply_to = "z",
+                      radius = radius);
+        }
+      }
+      translate([ -nema_width / 2, -(nema_width / 2), 0 ])
+        cube([ nema_width, nema_width, base_height ]);
+    }
+    translate([ 0, 0, -base_height * 2 ])
+      cylinder(h = base_height * 4, r = nema_17_circle_bump_radius);
+  }
+}
+
+module
+nema17_bolt_holes()
+{
+  bolt_radius = 1.5;
+  bolt_clearence = 1.4;
+  bolt_count = 4;
+  bolt_spacing = 31.5;
+  translate([ 0, 0, 0 ]) for (i = [0:bolt_count - 1])
+  {
+    rotate([ 0, 0, (i * 90) ])
+    {
+      translate([ bolt_spacing / 2, bolt_spacing / 2, 0 ])
+      {
+        bolt_hole(r = bolt_radius);
+      }
+    }
+  }
+}
+
+module
+pump_circle()
+{
+
+  wall_thickness = round_to_line_width(1.5);
+
+  difference()
+  {
+    difference()
+    {
+      cylinder(h = 10, r = pump_circle_inner_radius + wall_thickness);
+      cylinder(h = 11, r = pump_circle_inner_radius);
+    }
+
+    tube_hole_radius = 2;
+    tube_spacing = 10;
+    translate([ tube_spacing, 0, 5 ])
+    {
+      rotate([ 90, 0, 0 ]) cylinder(h = 100, r = tube_hole_radius);
+    }
+    translate([ -tube_spacing, 0, 5 ])
+    {
+      rotate([ 90, 0, 0 ]) cylinder(h = 100, r = tube_hole_radius);
+    }
+  }
+}
+
+module
+housing()
+{
+  difference()
+  {
+    union()
+    {
+      nema17_base();
+      pump_circle();
+    }
+    nema17_bolt_holes();
+  }
+}
+
+housing();
+
 // bearing_mockup();
 
-top_cap(debug = true);
+// top_cap(debug = true);
+// bottom_cap(debug = true);
+
+//*** LIB ***//
+
+module
+roundedcube(size = [ 1, 1, 1 ], center = false, radius = 0.5, apply_to = "all")
+{
+  // If single value, convert to [x, y, z] vector
+  size = (size[0] == undef) ? [ size, size, size ] : size;
+
+  translate_min = radius;
+  translate_xmax = size[0] - radius;
+  translate_ymax = size[1] - radius;
+  translate_zmax = size[2] - radius;
+
+  diameter = radius * 2;
+
+  obj_translate = (center == false)
+                    ? [ 0, 0, 0 ]
+                    : [ -(size[0] / 2), -(size[1] / 2), -(size[2] / 2) ];
+
+  translate(v = obj_translate)
+  {
+    hull()
+    {
+      for (translate_x = [ translate_min, translate_xmax ]) {
+        x_at = (translate_x == translate_min) ? "min" : "max";
+        for (translate_y = [ translate_min, translate_ymax ]) {
+          y_at = (translate_y == translate_min) ? "min" : "max";
+          for (translate_z = [ translate_min, translate_zmax ]) {
+            z_at = (translate_z == translate_min) ? "min" : "max";
+
+            translate(
+              v = [ translate_x, translate_y,
+                    translate_z ]) if ((apply_to == "all") ||
+                                       (apply_to == "xmin" && x_at == "min") ||
+                                       (apply_to == "xmax" && x_at == "max") ||
+                                       (apply_to == "ymin" && y_at == "min") ||
+                                       (apply_to == "ymax" && y_at == "max") ||
+                                       (apply_to == "zmin" && z_at == "min") ||
+                                       (apply_to == "zmax" && z_at == "max"))
+            {
+              sphere(r = radius);
+            }
+            else
+            {
+              rotate =
+                (apply_to == "xmin" || apply_to == "xmax" || apply_to == "x")
+                  ? [ 0, 90, 0 ]
+                  : ((apply_to == "ymin" || apply_to == "ymax" ||
+                      apply_to == "y")
+                       ? [ 90, 90, 0 ]
+                       : [ 0, 0, 0 ]);
+              rotate(a = rotate)
+                cylinder(h = diameter, r = radius, center = true);
+            }
+          }
+        }
+      }
+    }
+  }
+}
