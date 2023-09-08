@@ -1,4 +1,4 @@
-line_width = 0.4;
+line_width = 0.48;
 layer_height = 0.2;
 function round_to_line_width(x) = floor(x / line_width) * line_width;
 function round_to_layer_height(x) = floor(x / layer_height) * layer_height;
@@ -7,12 +7,12 @@ radius = 13.5;
 // shaft_radius = 5;
 shaft_height = 9 + base_height;
 
-bolt_radius = 1.5;
+bolt_radius = 1.8;
 shaft_radius = 2.5;
 shaft_thickness = round_to_line_width(1.5);
 bolt_clearence = 1.4;
 bolt_count = 4;
-bolt_leg_width = round_to_line_width(5);
+bolt_leg_width = round_to_line_width(7);
 bearing_lip = round_to_layer_height(0.4);
 
 // 623zz bearing: 3mm inner diameter, 10mm outer diameter, 4mm thick
@@ -22,6 +22,7 @@ bearing_thickness = 4;
 
 nema_inset = 0.5;
 nema_width = 42;
+nema_slop = 0.16;
 
 debug = true;
 
@@ -34,10 +35,10 @@ nema_17(radius, h = 100)
   {
     difference()
     {
-      cylinder(h = h, r = radius);
+      cylinder(h = h, r = radius + nema_slop);
       translate(v = [ (radius * 2) - nema_inset, 0, 0 ])
       {
-        cube([ radius * 2, radius * 2, h ], center = true);
+        cube([ (radius * 2) - nema_slop, radius * 2, h ], center = true);
       }
     }
   }
@@ -86,6 +87,7 @@ top_cap(debug = false)
       union()
       {
         bolt_legs();
+        cylinder(h = base_height, r = shaft_thickness * 4);
         // cylinder(r = radius, h = base_height);
       }
       // NEMA 17 shaft, flat side
@@ -227,14 +229,16 @@ structural_bend()
   }
 }
 
-pump_circle_inner_radius = radius + (bearing_outer_radius / 2);
-nema_17_circle_bump_radius = 11;
+extra_innner_width = 0.2;
+pump_circle_inner_radius =
+  radius + (bearing_outer_radius / 2) + (extra_innner_width);
+nema_17_circle_bump_radius = 11.4;
 module
 nema17_base()
 {
   difference()
   {
-    radius = 5;
+    radius = 8;
     intersection()
     {
       union()
@@ -257,7 +261,7 @@ nema17_base()
 module
 nema17_bolt_holes()
 {
-  bolt_radius = 1.5;
+  bolt_radius = 1.8;
   bolt_clearence = 1.4;
   bolt_count = 4;
   bolt_spacing = 31.5;
@@ -277,23 +281,34 @@ module
 pump_circle()
 {
 
-  wall_thickness = round_to_line_width(1.5);
+  wall_thickness = 1;
+  inner_lip_height = 6;
+  tube_slop = -0.4;
 
   difference()
   {
-    difference()
+    union()
     {
-      cylinder(h = 10, r = pump_circle_inner_radius + wall_thickness);
-      cylinder(h = 11, r = pump_circle_inner_radius);
+      difference()
+      {
+        cylinder(h = 17, r = pump_circle_inner_radius + wall_thickness);
+        cylinder(h = 24, r = pump_circle_inner_radius + tube_slop);
+      }
+      difference()
+      {
+        cylinder(h = inner_lip_height, r = pump_circle_inner_radius);
+        cylinder(h = 24, r = pump_circle_inner_radius - 2);
+      }
     }
 
-    tube_hole_radius = 2;
-    tube_spacing = 10;
-    translate([ tube_spacing, 0, 5 ])
+    tube_hole_radius = 2.02;
+    tube_spacing = 7.6;
+    tube_height = 12;
+    translate([ tube_spacing, 0, tube_height ])
     {
       rotate([ 90, 0, 0 ]) cylinder(h = 100, r = tube_hole_radius);
     }
-    translate([ -tube_spacing, 0, 5 ])
+    translate([ -tube_spacing, 0, tube_height ])
     {
       rotate([ 90, 0, 0 ]) cylinder(h = 100, r = tube_hole_radius);
     }
@@ -318,8 +333,8 @@ housing();
 
 // bearing_mockup();
 
-// top_cap(debug = true);
-// bottom_cap(debug = true);
+// top_cap(debug = false);
+// bottom_cap(debug = false);
 
 //*** LIB ***//
 
